@@ -1,5 +1,5 @@
 
-# ChessLab (HW7)
+# ChessLab (Group Project Starter Code)
 Self-contained chess GUI + AI assignment.
 
 - Rules: all standard moves **except** castling & en passant (omitted for clarity). Promotion->Queen.
