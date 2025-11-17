@@ -15,7 +15,7 @@ Stages: random, eval, minimax, alphabeta.
 | :------------- | :-------- | :------------------------------ |
 | Angela         | A18083528 | Writing contributor + planned eval improvement |
 | Fong Yu Lin    | A18496379 | Algorithm design & Optimization |
-| Nav            |           |                                 |
+| Pranav Prabu   | A17424120 | Alternate algorithm development |
 | Jefferson Chen |           |                                 |
 
 # Abstract
