@@ -13,7 +13,7 @@ Stages: random, eval, minimax, alphabeta.
 
 | Name           | PID       | Roles                           |
 | :------------- | :-------- | :------------------------------ |
-| Angela         | A18083528 | Writing contributor + eval improvement |
+| Angela         | A18083528 | Writing contributor + planned eval improvement |
 | Fong Yu Lin    | A18496379 | Algorithm design & Optimization |
 | Nav            |           |                                 |
 | Jefferson Chen |           |                                 |
