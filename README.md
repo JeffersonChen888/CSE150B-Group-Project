@@ -16,7 +16,7 @@ Stages: random, eval, minimax, alphabeta.
 | Angela         | A18083528 | Writing contributor + planned eval improvement |
 | Fong Yu Lin    | A18496379 | Algorithm design & Optimization |
 | Pranav Prabu   | A17424120 | Alternate algorithm development |
-| Jefferson Chen |           |                                 |
+| Jefferson Chen | A18137549 | Implemented Basic Minmax and Alphabeta algorithm|
 
 # Abstract
 
