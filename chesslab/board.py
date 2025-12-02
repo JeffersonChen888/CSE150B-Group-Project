@@ -98,7 +98,7 @@ class Board:
         for dr,dc in PIECE_OFFSETS['K']:
             nr,nc=rK+dr,cK+dc
             if self.in_bounds(nr,nc) and self.board[nr][nc]==by_color+'K': return True
-        d=-1 if by_color==WHITE else 1
+        d=1 if by_color==WHITE else -1
         for dc in (-1,1):
             nr,nc=rK+d,cK+dc
             if self.in_bounds(nr,nc) and self.board[nr][nc]==by_color+'P': return True
