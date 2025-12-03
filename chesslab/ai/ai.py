@@ -21,6 +21,7 @@ MoveType = Tuple[Tuple[int, int], Tuple[int, int], Optional[str]]
 
 
 def choose_random_move(board):
+    # LEGACY IMPLEMENTATION
     """Return a uniformly random legal move or None if no moves exist."""
     legal = board.legal_moves()
     return random.choice(legal) if legal else None
@@ -32,6 +33,7 @@ def evaluate(board):
 
 
 def choose_minimax_move(board, depth=2, metrics=None):
+    # LEGACY IMPLEMENTATION
     """
     Pick a move for the current player using minimax (no pruning).
 
@@ -42,6 +44,7 @@ def choose_minimax_move(board, depth=2, metrics=None):
 
 
 def choose_alphabeta_move(board, depth=3, metrics=None):
+    # LEGACY IMPLEMENTATION
     """
     Pick a move for the current player using minimax with alpha-beta pruning.
 
@@ -49,3 +52,37 @@ def choose_alphabeta_move(board, depth=3, metrics=None):
         (best_move, nodes_visited)
     """
     raise NotImplementedError("Implement alpha-beta search in ai.py")
+
+
+def choose_move(board):
+    # MUST IMPLEMENT FOR CREDIT
+    """
+    Pick a move using iterative deepening search (IDS).
+
+    This is a generator function that yields progressively better moves
+    as the search deepens. The tournament will use the last move yielded
+    before the time limit expires.
+
+    IMPORTANT: Yield a move early to avoid forfeit! If no move is yielded
+    before time runs out, you lose the game.
+
+    Example implementation:
+        def choose_move(board):
+            legal_moves = board.legal_moves()
+            if not legal_moves:
+                return
+
+            # Yield a quick move immediately to avoid forfeit
+            yield legal_moves[0]
+
+            # Search deeper and yield better moves
+            for depth in range(1, 50):
+                best_move = alphabeta_search(board, depth)
+                if best_move:
+                    yield best_move
+
+    Yields:
+        Move objects, progressively better as search deepens
+    """
+    raise NotImplementedError("Implement iterative deepening search in ai.py")
+    yield  # Makes this a generator function
