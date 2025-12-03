@@ -20,7 +20,7 @@ Stages: random, eval, minimax, alphabeta.
 
 # Abstract
 
-The strategy we have is first implement the very basic evaluate, minimax, and alphabeta algorithms, and then see how they perform. Specifically for the evaluate, we assign value to each piece and calculate which side has more valuable pieces on the board. For minimax and alphabeta, we simply use the algorithms we learned in class.
+We implement a basic evaluate function, minimax, and alphabeta algorithms, and observe their performance. Minimax and alphabeta algorithms are the same as what we learned in class. For the evaluation function, we use a table based strategy, where we assign different values at each position for each kind of piece. This is because some positions are more optimal for a specific kind of piece, for example the knight and queen have higher values at the center of the table because their movement options greatly increase in the center of the board. Alternatively, the king, which has two position value tables for different stages of the game, wants to be at the bottom row at the start and middle of the game, since it is more likely there will be other pieces at the bottom rows to prevent checkmate, and then it can move to the middle of the board later in the game.
 
 # Introduction
 
