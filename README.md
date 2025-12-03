@@ -13,10 +13,10 @@ Stages: random, eval, minimax, alphabeta.
 
 | Name           | PID       | Roles                           |
 | :------------- | :-------- | :------------------------------ |
-| Angela         |           |                                 |
+| Angela Shen    | A18083528 | Writing contributor + planned eval improvement |
 | Fong Yu Lin    | A18496379 | Algorithm design & Optimization |
-| Nav            |           |                                 |
-| Jefferson Chen |           |                                 |
+| Pranav Prabu   | A17424120 | Alternate algorithm development |
+| Jefferson Chen | A18137549 | Implemented Basic Minmax and Alphabeta algorithm|
 
 # Abstract
 
