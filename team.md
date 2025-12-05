@@ -19,6 +19,8 @@ Moreover, now we have a "smarter" AI that makes better decisions, but it's now t
 
 P.S.: We asked Gemini for the bonus/penalty table for the evaluation.
 
+## Questions we consulted GPT
+
 **Prompt:** How can I let the AI to know which pieces to go where can get more advantages?
 
 **Gemini:**
@@ -49,3 +51,148 @@ PAWN_TABLE = [
 ]
 In your evaluate loop, if you find a White Pawn at (r, c), you would add PIECE_VALUES['P'] + PAWN_TABLE[r][c] to the score. If you find a Black Pawn, you'd subtract PIECE_VALUES['P'] + PAWN_TABLE[7-r][c] (since the table is flipped for Black).
 ```
+
+**Prompt:** Is there a way to get available moves at depth 0? I think my AI currently stops abruptly at depth=0 and can't see the available at depth 0.
+
+**Gemini:**
+
+```
+Yes! You can add a Quiescence Search: It can be a function inside choose_alphabeta_move. When the main search reaches depth=0, instead of stopping immediately, it continues searching only capture moves. This prevents the "Horizon Effect" (e.g., stopping the search right before you get your Queen captured back).
+
+def quiescence(board, alpha, beta, is_maximizing):
+        """
+        Continue search until a 'quiet' position is found.
+        Only considers captures and promotions.
+        """
+        nodes_visited[0] += 1
+        stand_pat = evaluate(board)
+
+        # Fail-hard beta cutoff
+        if is_maximizing:
+            if stand_pat >= beta:
+                return beta
+            if stand_pat > alpha:
+                alpha = stand_pat
+        else:
+            if stand_pat <= alpha:
+                return alpha
+            if stand_pat < beta:
+                beta = stand_pat
+
+        # Get all legal moves
+        legal_moves = board.legal_moves()
+
+        # Filter for "Loud" moves: Captures or Promotions
+        loud_moves = []
+        for move in legal_moves:
+            dst_r, dst_c = move.dst
+            # Check if there is a piece at destination (Capture) OR if it is a promotion
+            if board.piece_at(dst_r, dst_c) is not None or move.promote is not None:
+                loud_moves.append(move)
+
+        if not loud_moves:
+            return stand_pat
+
+        # Order captures by MVV-LVA
+        loud_moves.sort(key=lambda m: score_move(board, m), reverse=True)
+
+        if is_maximizing:
+            for move in loud_moves:
+                new_board = board.clone()
+                new_board.make(move)
+                score = quiescence(new_board, alpha, beta, False)
+
+                if score >= beta:
+                    return beta
+                if score > alpha:
+                    alpha = score
+            return alpha
+        else:
+            for move in loud_moves:
+                new_board = board.clone()
+                new_board.make(move)
+                score = quiescence(new_board, alpha, beta, True)
+
+                if score <= alpha:
+                    return alpha
+                if score < beta:
+                    beta = score
+            return beta
+To use it:
+if current_depth == 0:
+            # Drop into Quiescence Search instead of raw evaluate
+            return quiescence(board, alpha, beta, is_maximizing), None
+```
+
+**Prompt:** My AI is taking too long to make decision on making steps. How to increase its speed but continue select great moves?
+
+**Gemini:**
+
+```
+To increase your AI's speed without sacrificing intelligence, we need to address two major performance bottlenecks in your current code:
+
+Expensive Evaluation: Your evaluate function calculates len(board.legal_moves()). This is extremely slow because it requires generating and validating every move. Doing this at every leaf node paralyzes the search.
+
+Redundant Calculations: Your Iterative Deepening (IDS) in choose_move recalculates the entire tree from scratch for every depth level. We need a Transposition Table (TT) to remember positions we've already seen.
+
+Here is the optimized code. Replace the corresponding sections in your ai.py.
+
+1. Optimize evaluate
+Change: Remove the mobility calculation (the legal_moves part). The material scores and Piece-Square Tables are sufficient for a strong bot, and this single change will likely make your AI 10x-50x faster.
+
+To increase your AI's speed without sacrificing intelligence, we need to address two major performance bottlenecks in your current code:
+
+Expensive Evaluation: Your evaluate function calculates len(board.legal_moves()). This is extremely slow because it requires generating and validating every move. Doing this at every leaf node paralyzes the search.
+
+Redundant Calculations: Your Iterative Deepening (IDS) in choose_move recalculates the entire tree from scratch for every depth level. We need a Transposition Table (TT) to remember positions we've already seen.
+
+Here is the optimized code. Replace the corresponding sections in your ai.py.
+
+1. Optimize evaluate
+Change: Remove the mobility calculation (the legal_moves part). The material scores and Piece-Square Tables are sufficient for a strong bot, and this single change will likely make your AI 10x-50x faster.
+
+2. Implement Transposition Table in choose_alphabeta_move
+This allows the AI to store results. When choose_move runs depth 4, it can instantly look up results from depth 3 stored in the dictionary.
+
+3. Update choose_move (Iterative Deepening)
+You should clear the global TRANSPOSITION_TABLE occasionally (e.g., at the start of a turn) so it doesn't consume all your memory, though keeping it can help if the game state is similar. For this assignment, clearing it at the start of choose_move is safest.
+```
+
+**Prompt:** Are there ways to make alpha beta pruning more efficient?
+
+**Claude:**
+
+```
+Yes, there are several techniques to make alpha-beta pruning more efficient! MVV-LVA (Most Valuable Victim - Least Valuable Attacker) is one of them. Here are the main optimization techniques:
+
+## Move Ordering Techniques
+
+**MVV-LVA (Most Valuable Victim - Least Valuable Attacker)**
+- Prioritizes captures by evaluating the victim's value minus the attacker's value
+- Example: Queen takes pawn is examined before pawn takes queen
+- Dramatically improves cutoff rates in tactical positions
+
+**Other move ordering heuristics:**
+- **Killer moves**: Moves that caused cutoffs at the same depth in sibling nodes
+- **History heuristic**: Tracks which moves historically caused cutoffs
+- **PV (Principal Variation) moves**: Prioritize the best move from the previous search iteration
+- **Hash move**: The best move stored in the transposition table for this position
+
+## Transposition Tables
+Store previously evaluated positions to avoid re-computing them. This is especially powerful in chess where the same position can be reached through different move orders.
+
+## Iterative Deepening
+Search to depth 1, then 2, then 3, etc. While this seems wasteful, it actually improves efficiency because:
+- Earlier shallow searches inform move ordering for deeper searches
+- Better move ordering means more cutoffs
+
+## Aspiration Windows
+Instead of searching with (-∞, +∞) bounds, use a narrow window around the expected score from a previous search. If the search fails, re-search with wider windows.
+
+## Null Move Pruning
+Give the opponent a free move. If you're still winning after giving them this advantage, you can safely prune this branch in many cases.
+
+The combination of these techniques can reduce the effective branching factor from around 35 (in chess) down to 6 or less, making searches exponentially faster!
+```
+
+For the MVV-LVA, we looked up on this website: https://rustic-chess.org/search/ordering/mvv_lva.html. We also learned the Transposition Tables from this website.

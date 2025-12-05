@@ -19,6 +19,7 @@ from ..common.profiling import Counter
 
 MoveType = Tuple[Tuple[int, int], Tuple[int, int], Optional[str]]
 
+TRANSPOSITION_TABLE = {}
 
 def choose_random_move(board):
     """Return a uniformly random legal move or None if no moves exist."""
@@ -122,28 +123,26 @@ def evaluate(board):
     This improved version includes:
     1. Material count (using centipawns)
     2. Piece-Square Tables for positional awareness
-    3. Mobility score for the current player
+    3. Check penalties/bonuses
     """
-    # Check for game checkmate
+    # Check for game checkmate/stalemate immediately
     outcome = board.outcome()
     if outcome:
         if outcome[0] == 'checkmate':
             return 1000000 if outcome[1] == 'w' else -1000000
         else:
-            return 0
+            return 0 # Stalemate
 
     score = 0
     white_material = 0
     black_material = 0
     
     PIECE_TABLES = {
-        'P': PAWN_TABLE,
-        'N': KNIGHT_TABLE,
-        'B': BISHOP_TABLE,
-        'R': ROOK_TABLE,
-        'Q': QUEEN_TABLE
+        'P': PAWN_TABLE, 'N': KNIGHT_TABLE, 'B': BISHOP_TABLE,
+        'R': ROOK_TABLE, 'Q': QUEEN_TABLE
     }
 
+    # Efficient board scan
     for r in range(8):
         for c in range(8):
             piece = board.piece_at(r, c)
@@ -153,53 +152,49 @@ def evaluate(board):
             color = piece[0]
             piece_type = piece[1]
             
+            # lookup material
             material_value = PIECE_VALUES.get(piece_type, 0)
+            
+            # lookup position
             positional_score = 0
-
             if piece_type in PIECE_TABLES:
                 if color == 'w':
                     positional_score = PIECE_TABLES[piece_type][r][c]
-                    white_material += material_value
                 else:
                     positional_score = PIECE_TABLES[piece_type][7 - r][c]
-                    black_material += material_value
-            
-            elif piece_type == 'K':
-                total_material = (white_material + black_material) / 100
                 
-                # A simple heuristic: < 20 material points = endgame
-                if total_material < 20: 
-                    if color == 'w':
-                        positional_score = KING_END_GAME_TABLE[r][c]
-                    else:
-                        positional_score = KING_END_GAME_TABLE[7 - r][c]
-                else: # Middle game
-                    if color == 'w':
-                        positional_score = KING_MIDDLE_GAME_TABLE[r][c]
-                    else:
-                        positional_score = KING_MIDDLE_GAME_TABLE[7 - r][c]
+                if color == 'w': white_material += material_value
+                else: black_material += material_value
 
+            elif piece_type == 'K':
+                # Determine game phase based on material
+                total_material = (white_material + black_material) / 100
+                is_endgame = total_material < 20
+                
+                table = KING_END_GAME_TABLE if is_endgame else KING_MIDDLE_GAME_TABLE
+                if color == 'w':
+                    positional_score = table[r][c]
+                else:
+                    positional_score = table[7 - r][c]
+
+            # Accumulate score
             if color == 'w':
                 score += material_value + positional_score
             else:
                 score -= (material_value + positional_score)
-
-    mobility_weight = 10
-    num_legal_moves = len(board.legal_moves())
-
-    if board.turn == 'w':
-        score += num_legal_moves * mobility_weight
-    else:
-        score -= num_legal_moves * mobility_weight
+    
+    # Check Bonuses/Penalties
+    # Being in check is inherently unstable and restricts movement
+    if board.is_check('w'):
+        score -= 50
+    if board.is_check('b'):
+        score += 50
 
     return score
 
 def choose_minimax_move(board, depth=2, metrics=None):
     """
     Pick a move for the current player using minimax (no pruning).
-
-    Returns:
-        (best_move, nodes_visited)
     """
     nodes_visited = [0]  
 
@@ -274,137 +269,202 @@ def choose_alphabeta_move(board, depth=3, metrics=None):
     """
     nodes_visited = [0]
     
+    # Flags for Transposition Table
+    EXACT = 0
+    LOWERBOUND = 1
+    UPPERBOUND = 2
+
     def score_move(board, move):
-        start_sq, end_sq, promotion = move
-        
-        piece = board.piece_at(start_sq[0], start_sq[1])
-        if not piece:
-            return 0
-            
-        piece_type = piece[1]
-        captured_piece = board.piece_at(end_sq[0], end_sq[1])
-        
+        # Quick heuristic for move ordering
+        start, end, promote = move
+        victim = board.piece_at(end[0], end[1])
+        attacker = board.piece_at(start[0], start[1])
         score = 0
-
-        if captured_piece:
-            attacker_val = PIECE_VALUES.get(piece_type, 0)
-            victim_val = PIECE_VALUES.get(captured_piece[1], 0)
-            score = 1000 + (victim_val - attacker_val)
-
-        if promotion == 'Q':
-            score += PIECE_VALUES['Q']
-        
+        if victim:
+            # MVV-LVA: Most Valuable Victim - Least Valuable Attacker
+            score = 100 * PIECE_VALUES.get(victim[1], 0) - PIECE_VALUES.get(attacker[1], 0)
+        if promote == 'Q':
+            score += 900
         return score
 
-    def alphabeta(board, depth, alpha, beta, is_maximizing):
+    def quiescence(board, alpha, beta, is_maximizing):
+        """
+        Continue search until a 'quiet' position is found.
+        Only considers captures and promotions.
+        """
         nodes_visited[0] += 1
+        stand_pat = evaluate(board)
+        
+        # Fail-hard beta cutoff
+        if is_maximizing:
+            if stand_pat >= beta:
+                return beta
+            if stand_pat > alpha:
+                alpha = stand_pat
+        else:
+            if stand_pat <= alpha:
+                return alpha
+            if stand_pat < beta:
+                beta = stand_pat
+
+        # Get all legal moves
+        legal_moves = board.legal_moves()
+        
+        # Filter for "Loud" moves: Captures or Promotions
+        loud_moves = []
+        for move in legal_moves:
+            dst_r, dst_c = move.dst
+            # Check if there is a piece at destination (Capture) OR if it is a promotion
+            if board.piece_at(dst_r, dst_c) is not None or move.promote is not None:
+                loud_moves.append(move)
+
+        if not loud_moves:
+            return stand_pat
+
+        # Order captures by MVV-LVA
+        loud_moves.sort(key=lambda m: score_move(board, m), reverse=True)
+
+        if is_maximizing:
+            for move in loud_moves:
+                new_board = board.clone()
+                new_board.make(move)
+                score = quiescence(new_board, alpha, beta, False)
+                
+                if score >= beta:
+                    return beta
+                if score > alpha:
+                    alpha = score
+            return alpha
+        else:
+            for move in loud_moves:
+                new_board = board.clone()
+                new_board.make(move)
+                score = quiescence(new_board, alpha, beta, True)
+                
+                if score <= alpha:
+                    return alpha
+                if score < beta:
+                    beta = score
+            return beta
+
+    def alphabeta(board, current_depth, alpha, beta, is_maximizing):
+        nodes_visited[0] += 1
+        
+        # Transposition Table Lookup
+        # Create a hashable tuple representation of the board + turn
+        board_key = (
+            tuple(tuple(row) for row in board.board),
+            board.turn
+        )
+        
+        tt_entry = TRANSPOSITION_TABLE.get(board_key)
+        
+        if tt_entry and tt_entry[0] >= current_depth:
+            tt_depth, tt_value, tt_flag, tt_move = tt_entry
+            if tt_flag == EXACT:
+                return tt_value, tt_move
+            elif tt_flag == LOWERBOUND:
+                alpha = max(alpha, tt_value)
+            elif tt_flag == UPPERBOUND:
+                beta = min(beta, tt_value)
+            
+            if alpha >= beta:
+                return tt_value, tt_move
 
         outcome = board.outcome()
         if outcome:
             if outcome[0] == 'checkmate':
-                return 1000000 if outcome[1] == 'w' else -1000000
-            else:
-                return 0
+                # Prefer shorter mates
+                score = 1000000 + current_depth if outcome[1] == 'w' else -1000000 - current_depth
+                return score, None
+            return 0, None
 
-        if depth == 0:
-            return evaluate(board)
+        if current_depth == 0:
+            # Drop into Quiescence Search instead of raw evaluate
+            return quiescence(board, alpha, beta, is_maximizing), None
 
+        # Move Ordering
         legal_moves = board.legal_moves()
         if not legal_moves:
-            return evaluate(board)
-        
-        sorted_moves = sorted(legal_moves, key=lambda m: score_move(board, m), reverse=True)
-        
+            return evaluate(board), None
+
+        # Try the TT move first (pv_move), then captures, then rest
+        pv_move = None
+        if tt_entry:
+            pv_move = tt_entry[3]
+            
+        def move_sorter(m):
+            if m == pv_move: return 1000000
+            return score_move(board, m)
+            
+        sorted_moves = sorted(legal_moves, key=move_sorter, reverse=True)
+
+        best_move_in_node = None
         if is_maximizing:
-            max_eval = float('-inf')
+            value = float('-inf')
             for move in sorted_moves:
                 new_board = board.clone()
                 new_board.make(move)
+                new_val, _ = alphabeta(new_board, current_depth - 1, alpha, beta, False)
                 
-                eval_score = alphabeta(
-                    new_board, depth - 1, alpha, beta, False)
+                if new_val > value:
+                    value = new_val
+                    best_move_in_node = move
                 
-                max_eval = max(max_eval, eval_score)
-                alpha = max(alpha, eval_score)
-                if beta <= alpha:
+                alpha = max(alpha, value)
+                if alpha >= beta:
                     break
-            return max_eval
         else:
-            min_eval = float('inf')
+            value = float('inf')
             for move in sorted_moves:
                 new_board = board.clone()
                 new_board.make(move)
+                new_val, _ = alphabeta(new_board, current_depth - 1, alpha, beta, True)
                 
-                eval_score = alphabeta(
-                    new_board, depth - 1, alpha, beta, True)
-                
-                min_eval = min(min_eval, eval_score)
-                beta = min(beta, eval_score)
+                if new_val < value:
+                    value = new_val
+                    best_move_in_node = move
+                    
+                beta = min(beta, value)
                 if beta <= alpha:
                     break
-            return min_eval
 
-    is_maximizing = (board.turn == 'w')
-    legal_moves = board.legal_moves()
+        # Store in Transposition Table
+        flag = EXACT
+        if value <= alpha: flag = UPPERBOUND
+        elif value >= beta: flag = LOWERBOUND
+        
+        TRANSPOSITION_TABLE[board_key] = (current_depth, value, flag, best_move_in_node)
+        
+        return value, best_move_in_node
 
-    if not legal_moves:
-        return None, 0
-
-    sorted_moves = sorted(legal_moves, key=lambda m: score_move(board, m), reverse=True)
-    
-    best_move = None
-    best_value = float('-inf') if is_maximizing else float('inf')
+    # Start the search from the root
     alpha = float('-inf')
     beta = float('inf')
-
-    for move in sorted_moves:
-        new_board = board.clone()
-        new_board.make(move)
-        
-        move_value = alphabeta(
-            new_board, depth - 1, alpha, beta, not is_maximizing)
-
-        if is_maximizing:
-            if move_value > best_value:
-                best_value = move_value
-                best_move = move
-            alpha = max(alpha, move_value)
-        else:
-            if move_value < best_value:
-                best_value = move_value
-                best_move = move
-            beta = min(beta, move_value)
-
+    is_max = (board.turn == 'w')
+    
+    best_val, best_move = alphabeta(board, depth, alpha, beta, is_max)
+    
     return best_move, nodes_visited[0]
 
 def choose_move(board):
     """
     Pick a move using iterative deepening search (IDS).
-
-    This is a generator function that yields progressively better moves
-    as the search deepens. The tournament will use the last move yielded
-    before the time limit expires.
-
-    IMPORTANT: Yield a move early to avoid forfeit! If no move is yielded
-    before time runs out, you lose the game.
-
-    Example implementation:
-        def choose_move(board):
-            legal_moves = board.legal_moves()
-            if not legal_moves:
-                return
-
-            # Yield a quick move immediately to avoid forfeit
-            yield legal_moves[0]
-
-            # Search deeper and yield better moves
-            for depth in range(1, 50):
-                best_move = alphabeta_search(board, depth)
-                if best_move:
-                    yield best_move
-
-    Yields:
-        Move objects, progressively better as search deepens
     """
-    raise NotImplementedError("Implement iterative deepening search in ai.py")
-    yield  # Makes this a generator function
+    global TRANSPOSITION_TABLE
+    TRANSPOSITION_TABLE.clear()
+    
+    legal_moves = board.legal_moves()
+    if not legal_moves:
+        return
+
+    yield legal_moves[0]
+    
+    for depth in range(1, 50):
+        try:
+            best_move, nodes = choose_alphabeta_move(board, depth=depth)
+            
+            if best_move:
+                yield best_move
+        except Exception:
+            break

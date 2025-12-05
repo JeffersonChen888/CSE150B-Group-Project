@@ -203,5 +203,3 @@ Post on Piazza for coding questions, and on Discord for general (non coding rela
 Good luck, and may the best search algorithm win.
 
 -- Your Prof
-
-> > > > > > > upstream/main
