@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-from chesslab.gui import main
-if __name__=='__main__': main()
-=======
 import argparse
 
 def run_headless(white_ai_path, black_ai_path, time_limit, max_moves):
@@ -264,4 +260,3 @@ if __name__ == '__main__':
     else:
         # Run headless AI vs AI
         run_headless(args.white, args.black, args.time, args.max_moves)
->>>>>>> upstream/main
