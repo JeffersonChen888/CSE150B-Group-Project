@@ -1,5 +1,5 @@
 
-from copy import deepcopy
+from copy import deepcopy  # Used only for START_POS initialization
 WHITE, BLACK='w','b'
 PIECE_OFFSETS={'N':[(-2,-1),(-2,1),(-1,-2),(-1,2),(1,-2),(1,2),(2,-1),(2,1)],
 'B':[(-1,-1),(-1,1),(1,-1),(1,1)],
@@ -21,7 +21,7 @@ class Move:
 class Board:
     def __init__(self): self.board=deepcopy(START_POS); self.turn=WHITE; self.history=[]
     def clone(self):
-        b=Board.__new__(Board); b.board=deepcopy(self.board); b.turn=self.turn; b.history=list(self.history); return b
+        b=Board.__new__(Board); b.board=[row[:] for row in self.board]; b.turn=self.turn; b.history=list(self.history); return b
     def piece_at(self,r,c): return self.board[r][c]
     def set_piece(self,r,c,pc): self.board[r][c]=pc
     def kings_pos(self,color):
@@ -98,7 +98,7 @@ class Board:
         for dr,dc in PIECE_OFFSETS['K']:
             nr,nc=rK+dr,cK+dc
             if self.in_bounds(nr,nc) and self.board[nr][nc]==by_color+'K': return True
-        d=-1 if by_color==WHITE else 1
+        d=1 if by_color==WHITE else -1
         for dc in (-1,1):
             nr,nc=rK+d,cK+dc
             if self.in_bounds(nr,nc) and self.board[nr][nc]==by_color+'P': return True

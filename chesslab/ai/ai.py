@@ -376,3 +376,35 @@ def choose_alphabeta_move(board, depth=3, metrics=None):
             beta = min(beta, move_value)
 
     return best_move, nodes_visited[0]
+
+def choose_move(board):
+    """
+    Pick a move using iterative deepening search (IDS).
+
+    This is a generator function that yields progressively better moves
+    as the search deepens. The tournament will use the last move yielded
+    before the time limit expires.
+
+    IMPORTANT: Yield a move early to avoid forfeit! If no move is yielded
+    before time runs out, you lose the game.
+
+    Example implementation:
+        def choose_move(board):
+            legal_moves = board.legal_moves()
+            if not legal_moves:
+                return
+
+            # Yield a quick move immediately to avoid forfeit
+            yield legal_moves[0]
+
+            # Search deeper and yield better moves
+            for depth in range(1, 50):
+                best_move = alphabeta_search(board, depth)
+                if best_move:
+                    yield best_move
+
+    Yields:
+        Move objects, progressively better as search deepens
+    """
+    raise NotImplementedError("Implement iterative deepening search in ai.py")
+    yield  # Makes this a generator function
