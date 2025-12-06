@@ -184,7 +184,6 @@ def evaluate(board):
                 score -= (material_value + positional_score)
     
     # Check Bonuses/Penalties
-    # Being in check is inherently unstable and restricts movement
     if board.is_check('w'):
         score -= 50
     if board.is_check('b'):

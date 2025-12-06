@@ -13,11 +13,21 @@ We implement a basic evaluate function, minimax, and alphabeta algorithms, and o
 
 # Introduction
 
+## Milestone 1
+
 We then noticed that the result didn't go that well as the AI isn't making well enough moves. So, we thought of improving the algorithm for the evaluate function. We think that the evaluation is one of the main thing that can make our AI "smarter", meaning to make it take better moves. We thought of maybe the the pieces can have higher advantages when they're in certain positions. Therefore, we created tables for each piece with their bonus/penalty for it to know which piece should go where to get more advantage. And then we've also found out that the King piece has different strategies in different stage of the game (in middle game it needs to be safe, and in end game it needs to be active). We then create two type of tables for the King piece.
 
 Moreover, now we have a "smarter" AI that makes better decisions, but it's now taking too long to make the decisions (from the original ~1,000ms to ~9,000ms now for depth=3). We moved our focus to optimizing the alphabeta algorithm. With original alphabeta algorithm, we were looking at moves in random order. If we get the worst move first, then we'll still have to search through everything just like minimax. So, we decided to improve the moving order and get the good looing "best" moves first and let the alphabeta pruning kicks in ealier. We added a helper function called `score_move` to look at one move and "guess" if that move is good (capturing Queen is good, moving pawn is boring). And then before the loop, we sort the scores that we got for the moves to let the "best" moves to be looped first. As the result, we successfully reduced the decision time to ~4,000ms.
 
 P.S.: We asked Gemini for the bonus/penalty table for the evaluation.
+
+## Milestone 2
+
+As to satisfy the requirement for milestone 2, we implemented the IDS for trying different depth and yeild with the best move out of depth from 1 to 50.
+
+After knowing our team's AI did really bad in the tournament, we found that the issue is mainly about the long decision making time causing timeout and can't make proper moves. In order to fix this, we found some algorithms to improve our alpha-beta effiency in this website: https://rustic-chess.org/search/ordering/mvv_lva.html. We didn't know how exactly can we improve our AI so we consulted GPT and it introduced us to the Transposition Tables for improving effiency and quick heuristic for move ordering with MVV-LVA. We got more details information about these two algorithms in the website and implemented into our AI. Moreover, we implemented the Quiescence Search function which continue search until a 'quiet' position is found, and only considers captures and promotions. This function helps us get a more accurate evaluation by continuing the search until the board reaches a stable state. It prevents the AI from making mistakes by stopping the lookahead just before a recapture happens.
+
+As a result, we have taken the lead in the sprint, blitz, rapid, classical tournaments.
 
 ## Questions we consulted GPT
 
@@ -194,5 +204,3 @@ Give the opponent a free move. If you're still winning after giving them this ad
 
 The combination of these techniques can reduce the effective branching factor from around 35 (in chess) down to 6 or less, making searches exponentially faster!
 ```
-
-For the MVV-LVA, we looked up on this website: https://rustic-chess.org/search/ordering/mvv_lva.html. We also learned the Transposition Tables from this website.
