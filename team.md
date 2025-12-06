@@ -1,17 +1,17 @@
 # Team Members
 
-| Name           | PID       | Roles                                            |
-| :------------- | :-------- | :----------------------------------------------- |
-| Angela Shen    | A18083528 | Writing contributor + planned eval improvement   |
-| Fong Yu Lin    | A18496379 | Algorithm design & Optimization                  |
-| Pranav Prabu   | A17424120 | Alternate algorithm development                  |
-| Jefferson Chen | A18137549 | Implemented Basic Minmax and Alphabeta algorithm |
+| Name           | PID       | Roles                                                 |
+| :------------- | :-------- | :---------------------------------------------------- |
+| Angela Shen    | A18083528 | Writing contributor + planned eval improvement        |
+| Fong Yu Lin    | A18496379 | Algorithm design & Optimization                       |
+| Pranav Prabu   | A17424120 | Alternate algorithm development + writing contributor |
+| Jefferson Chen | A18137549 | Implemented Basic Minmax and Alphabeta algorithm      |
 
 # Abstract
 
 We implemented a basic evaluation function in conjunction with standard minimax and alpha–beta pruning algorithms, and we analyzed their behavior across a variety of game states. The minimax and alpha–beta routines closely follow the formulations taught in class, including recursive value propagation, terminal-state handling, and pruning of subtrees that cannot influence the optimal decision. Our primary design decision centered on constructing an evaluation function capable of capturing both positional features and phase-dependent strategy. To achieve this, we employed a piece-square table methodology, assigning values to each piece type based on its location on the board. This reflects the intuition that different positions confer different levels of mobility, control, and tactical opportunity. For instance, knights and queens receive elevated scores in central squares, where their movement options and influence over the board increase significantly. The king uses two distinct piece-square tables to account for the shift in priorities between the midgame and endgame: in earlier phases, its safety on the back rank is prioritized, while in the endgame, mobility and centralization become more valuable. Incorporating these positional and phase-based considerations allows the evaluation function to better approximate strategic reasoning and produce more consistent move assessments across varying game contexts.
 
-# Introduction
+# Milestones
 
 ## Milestone 1
 After running initial tests, we observed that the agent’s move quality was noticeably suboptimal, indicating that our baseline evaluation function was not sufficiently informative. Because the evaluation function is the primary component that shapes the agent’s strategic behavior, we focused on refining it to enable more accurate position assessments. Our intuition was that different pieces gain meaningful advantages from specific board locations, and that capturing this positional nuance would improve decision quality. To incorporate this, we transitioned to a piece-square table approach that assigns positional bonuses and penalties for each piece type. These tables encode standard strategic principles—for example, central squares improve the mobility and influence of knights and queens, while edge squares tend to constrain them. We also recognized that the king’s priorities shift dramatically between phases of the game: during the opening and middlegame, safety and castling structures are paramount, whereas in the endgame, the king becomes an active piece. To model this behavior, we constructed two separate king tables corresponding to these phases.
@@ -22,15 +22,17 @@ P.S.: The initial piece-square bonus and penalty tables were generated using Gem
 
 ## Milestone 2
 
-As to satisfy the requirement for milestone 2, we implemented the IDS for trying different depth and yeild with the best move out of depth from 1 to 50.
+To satisfy the requirements for Milestone 2, we implemented Iterative Deepening Search (IDS) to allow the agent to explore depths incrementally and always return the best move found within depths 1 through 50. IDS provided a structured way to manage time constraints while still enabling deeper searches when computation allowed.
 
-After knowing our team's AI did really bad in the tournament, we found that the issue is mainly about the long decision making time causing timeout and can't make proper moves. In order to fix this, we found some algorithms to improve our alpha-beta effiency in this website: https://rustic-chess.org/search/ordering/mvv_lva.html. We didn't know how exactly can we improve our AI so we consulted GPT and it introduced us to the Transposition Tables for improving effiency and quick heuristic for move ordering with MVV-LVA. We got more details information about these two algorithms in the website and implemented into our AI. Moreover, we implemented the Quiescence Search function which continue search until a 'quiet' position is found, and only considers captures and promotions. This function helps us get a more accurate evaluation by continuing the search until the board reaches a stable state. It prevents the AI from making mistakes by stopping the lookahead just before a recapture happens.
+Following the tournament results, we identified that our AI’s poor performance was primarily caused by excessively long decision-making times, which led to repeated timeouts and consequently forced the agent into sub-optimal or default fallback moves. To address this issue, we investigated techniques for improving alpha–beta efficiency, beginning with the resources provided in the Rustic Chess documentation on move ordering and [MVV-LVA](https://rustic-chess.org/search/ordering/mvv_lva.html). After further consultation with GPT, we were introduced to Transposition Tables for caching previously evaluated board states, as well as more sophisticated heuristics for move ordering such as Most Valuable Victim–Least Valuable Attacker (MVV-LVA). These methods were further researched through external references and subsequently integrated into our engine to enhance pruning and reduce redundant computations.
 
-As a result, we have taken the lead in the sprint, blitz, rapid, classical tournaments.
+In addition, we implemented a Quiescence Search routine to extend the search selectively in tactical positions. This approach continues evaluating a position until a “quiet” state is reached and considers only captures and promotions during extension. By preventing the evaluation from terminating immediately before high-impact responses—such as recaptures—Quiescence Search mitigates the horizon effect and produces more stable, context-aware evaluations.
 
-## Questions we consulted GPT
+Collectively, these optimizations significantly improved both the accuracy and the speed of our engine. As a result, our AI now performs competitively and has taken the lead in the sprint, blitz, rapid, and classical tournament formats.
 
-**Prompt:** How can I let the AI to know which pieces to go where can get more advantages?
+# Questions We Asked GPT
+
+**Prompt:** How can I let the AI know which pieces go where to get more advantages?
 
 **Gemini:**
 
@@ -61,7 +63,7 @@ PAWN_TABLE = [
 In your evaluate loop, if you find a White Pawn at (r, c), you would add PIECE_VALUES['P'] + PAWN_TABLE[r][c] to the score. If you find a Black Pawn, you'd subtract PIECE_VALUES['P'] + PAWN_TABLE[7-r][c] (since the table is flipped for Black).
 ```
 
-**Prompt:** Is there a way to get available moves at depth 0? I think my AI currently stops abruptly at depth=0 and can't see the available at depth 0.
+**Prompt:** Is there a way to get available moves at depth 0? I think my AI currently stops abruptly at depth=0 and can't see the available moves at depth 0.
 
 **Gemini:**
 
@@ -133,7 +135,7 @@ if current_depth == 0:
             return quiescence(board, alpha, beta, is_maximizing), None
 ```
 
-**Prompt:** My AI is taking too long to make decision on making steps. How to increase its speed but continue select great moves?
+**Prompt:** My AI is taking too long to make a decision on taking steps. How to increase its speed but continue to select great moves?
 
 **Gemini:**
 
